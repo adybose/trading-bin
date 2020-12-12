@@ -7,7 +7,7 @@ const  Graph = () => {
 
     const chartRef = React.useRef(null);
     
-    // TradingView Static Chart
+    // TradingView Static Chart Properties
     const chartProperties ={
         width: 1500,
         height: 600,
