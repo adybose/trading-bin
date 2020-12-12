@@ -1,13 +1,13 @@
 import React from 'react';
-import io from 'socket.io-client';
 import { createChart } from "lightweight-charts";
 
 
 const  Graph = () => {
-    const socket = io("http://127.0.0.1:4000");
+    const ws = new WebSocket("wss://stream.binance.com:9443/ws/btcusdt@kline_1m");
 
     const chartRef = React.useRef(null);
-    // TradingView Static Chart
+    
+    // TradingView Static Chart Properties
     const chartProperties ={
         width: 1500,
         height: 600,
@@ -20,20 +20,21 @@ const  Graph = () => {
     React.useEffect(()=> {
         if(chartRef.current) {
             const chart = createChart(chartRef.current, chartProperties);
-            prepareChart(chart);
+            prepareChart(chart, ws);
         }
     }, [])
 
-    function prepareChart(chart) {
+    function prepareChart(chart, ws) {
         var candleSeries = chart.addCandlestickSeries();
 
-        // Fetch binance static chart
+        // Fetch binance static chart REST API
         fetch('https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1m&limit=1000')
             .then(res => res.json())
             .then(data => {
+                console.log(data);
                 const cdata = data.map(d => {
                     return {
-                        time:d[0]/1000,
+                        time: d[0]/1000,
                         open: parseFloat(d[1]),
                         high: parseFloat(d[2]),
                         low: parseFloat(d[3]),
@@ -41,18 +42,26 @@ const  Graph = () => {
                     }
                 });
                 candleSeries.setData(cdata);
-                console.log("fetch() called");
+                console.log("Binance Static Kline REST API called with fetch()");
             })
             .catch(err => console.log(err))
         // If fetch api gives CORS issue, use a node proxy
 
-        // Fetch live data from Binance socket server
-        socket.on('KLINE', (payload) => {
-            console.log(payload);
-            candleSeries.update(payload);
-        });
+        // Fetch live data from Binance WS API
+        ws.onmessage = evt => {
+            const data = JSON.parse(evt.data);
+            console.log(data);
+            const chartData = {
+                time: data.k.t,
+                open: data.k.o,
+                high: data.k.h,
+                low: data.k.l,
+                close: data.k.c
+            }
+            candleSeries.update(chartData);
+        }
     }
-    
+
     return <div ref={chartRef} />;
 }
 
